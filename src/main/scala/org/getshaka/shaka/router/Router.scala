@@ -58,7 +58,6 @@ object Router:
 
   Document.body.addEventListener("click", handleClick)
   Window.addEventListener("popstate", () => updatePathState())
-  Document.addEventListener("DOMContentLoaded", () => updatePathState())
 
   private def currentPath: String =
     var uri = Window.location.pathname.asInstanceOf[String].stripSuffix("/")
