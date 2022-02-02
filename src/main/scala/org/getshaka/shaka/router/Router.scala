@@ -1,12 +1,15 @@
 package org.getshaka.shaka.router
 
-import org.getshaka.shaka.{Binding, Component, ComponentBuilder, Element, OpenState, State, useState}
+import org.getshaka.shaka.*
+import org.scalajs.dom.*
 
 import scala.collection.mutable.{Buffer, HashMap}
 import scala.collection.Seq
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSGlobal
 import scala.util.matching.Regex
+
+import scala.scalajs.js.URIUtils
 
 private case class Route(regex: Regex, component: Component, paramStates: Seq[OpenState[String]])
 
@@ -26,7 +29,7 @@ class Router(root: String = "/") extends Component:
     catchAll = component
     this
 
-  override val template: ComponentBuilder =
+  override def template: Frag = Frag {
     Router.PathState.bind(newPath =>
       routes.find(_.regex.matches(newPath)) match
         case Some(Route(regex, component, paramStates)) =>
@@ -35,36 +38,38 @@ class Router(root: String = "/") extends Component:
               paramState.setValue(param)
           newPath match
             case Router.HashRegex(hashId) =>
-              val elementToScroll = Router.Document.getElementById(hashId).asInstanceOf[Element|Null]
+              val elementToScroll = document.getElementById(hashId).asInstanceOf[Element|Null]
               if elementToScroll != null then elementToScroll.asInstanceOf[js.Dynamic].scrollIntoView()
-              else Router.Window.scrollTo(0, 0)
+              else window.scrollTo(0, 0)
             case _ =>
-              Router.Window.scrollTo(0, 0)
+              window.scrollTo(0, 0)
         case None =>
           if catchAll != null then catchAll.render
     )
+  }
 
 object Router:
-  private val Window = js.Dynamic.global.window
-  private val Document = js.Dynamic.global.document
   private val PathState = useState(currentPath)
   private[router] val RouteStates = HashMap.empty[String, Seq[OpenState[String]]]
   private val HashRegex = raw".*#(\S+)".r.anchored
   
   private val Origin =
-    val locOrigin = Window.location.origin.asInstanceOf[String|Null]
+    val locOrigin = window.location.origin.asInstanceOf[String|Null]
     if locOrigin != null && !locOrigin.isEmpty then locOrigin
-    else Window.location.protocol.asInstanceOf[String] + "//" + Window.location.host.asInstanceOf[String]
+    else window.location.protocol + "//" + window.location.host
 
-  Document.body.addEventListener("click", handleClick)
-  Window.addEventListener("popstate", () => updatePathState())
+  document.body.addEventListener("click", e => handleClick(e))
+  window.addEventListener("popstate", _ => updatePathState())
+
+  // todo is this one needed? Maybe call updatePathState() iff it has never been called before.
+  //  document.addEventListener("DOMContentLoaded", () => updatePathState())
 
   private def currentPath: String =
-    var uri = Window.location.pathname.asInstanceOf[String].stripSuffix("/")
-    val hash = Window.location.hash.asInstanceOf[String]
-    if (!hash.isEmpty)
+    var uri = window.location.pathname.stripSuffix("/")
+    val hash = window.location.hash
+    if (hash.nonEmpty)
       uri += "/" + hash
-    uri = js.Dynamic.global.decodeURI(uri).asInstanceOf[String]
+    uri = URIUtils.decodeURI(uri)
     if uri.isEmpty then "/"
     else uri
       
@@ -87,7 +92,8 @@ object Router:
     val anchor = anchorOpt.get
   
     // https://github.com/lampepfl/dotty/issues/11632
-    if (anchor.target != null && !anchor.target.isEmpty)
+    if
+      (anchor.target != null && anchor.target.nonEmpty)
       || anchor.hasAttribute("download")
       || {
         val rel: String|Null = anchor.getAttribute("rel")
@@ -103,8 +109,8 @@ object Router:
     then return
   
     e.preventDefault()
-    if href != Window.location.href.asInstanceOf[String] then
-      Window.history.pushState(js.Object(), "", href)
+    if href != window.location.href then
+      window.history.pushState(js.Object(), "", href)
       updatePathState()
   end handleClick
 
@@ -130,23 +136,11 @@ object Router:
 
 end Router
 
-def useParams(root: String = "/", routable: Routable): Seq[State[String]] =
+def useParams(routable: Routable, root: String = "/"): Seq[State[String]] =
   val frs: String = Router.fullRegexString(root, routable.path)
   Router.RouteStates.getOrElse(frs, Router.buildParamStates(frs))
 
-@js.native
-@JSGlobal
-private class HTMLElement extends js.Object:
-  val tagName: String = js.native
-  def hasAttribute(name: String): Boolean = js.native
-  def getAttribute(name: String): String|Null = js.native
-
-@js.native
-@JSGlobal
-private class HTMLAnchorElement extends HTMLElement:
-  val target: String|Null = js.native
-  val href: String|Null = js.native
-
+// todo add composedPath to scalajs-dom
 @js.native
 private trait MouseEvent extends js.Object:
   val defaultPrevented: Boolean = js.native
