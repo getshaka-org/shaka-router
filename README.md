@@ -3,7 +3,7 @@
 A SPA router for Shaka. Documentation todo.
 
 ```
-libraryDependencies ++= "org.getshaka" %%% "shaka-router" % "0.3.0"
+libraryDependencies ++= "org.getshaka" %%% "shaka-router" % "0.4.0"
 ```
 
 ## Scaladoc
