@@ -15,9 +15,7 @@ object Router extends Component:
 
   private val PathState = useState(currentPath)
   private val Routes = Buffer.empty[Route]
-  private val HashRegex = raw".*#(\S+)".r.anchored
-  private val Origin =
-    window.location.origin.getOrElse(window.location.protocol + "//" + window.location.host)
+  private val Origin = window.location.origin
 
   private var root = "/"
   private var catchAllRouting: Path => Component = _
